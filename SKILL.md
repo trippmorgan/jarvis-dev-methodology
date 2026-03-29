@@ -135,6 +135,22 @@ Skill tests live in `tests/` as executable scenarios.
 | Linting/Formatting | Fast/Local | Mechanical task |
 | Summarization | Sonnet/Local | Not reasoning-heavy |
 
+## Φ (Phi) Scoring — Integration Quality
+
+Every stage produces a Φ score (0→1) measuring integration quality. See `references/phi-scoring.md` for full methodology.
+
+| Stage | Measures | Sweet Spot |
+|-------|----------|------------|
+| Spec Φ | Requirement cross-references | 0.3-0.6 |
+| Plan Φ | DAG edge density | 0.15-0.35 |
+| Execute Φ | Interface connectivity | 0.5-0.8 |
+| Review Φ | Pattern consistency | 0.7-0.9 |
+| Verify Φ | Emergent behaviors confirmed | 0.6-0.9 |
+
+**Project Φ** = weighted average (verify 30%, execute 25%, review 20%, plan 15%, spec 10%)
+
+Log Φ scores via trace-logger: `--phi 0.65 --phi-stage execute`
+
 ## Commands
 
 When this skill is active, these workflows are available:

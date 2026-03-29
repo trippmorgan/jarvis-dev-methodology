@@ -22,6 +22,10 @@ MODEL=""
 TOKENS=""
 NOTES=""
 SHOW_SUMMARY=0
+PHI_SCORE=""
+PHI_STAGE=""
+PHI_LABEL=""
+PHI_NOTES=""
 
 usage() {
   cat <<EOF
@@ -43,6 +47,11 @@ ${BOLD}Optional:${NC}
   --tokens N           Token count (e.g., 12000, 12k)
   --notes TEXT         Freeform notes about the execution
 
+${BOLD}Φ Scoring:${NC}
+  --phi SCORE          Φ score (0.00-1.00) for a development stage
+  --phi-stage STAGE    Stage: spec, plan, execute, review, verify
+  --phi-notes TEXT     Notes about the Φ measurement
+
 ${BOLD}Flags:${NC}
   --summary            Show aggregate stats from existing traces
   --help, -h           Show this help message
@@ -50,6 +59,7 @@ ${BOLD}Flags:${NC}
 ${BOLD}Examples:${NC}
   $(basename "$0") . --task 1 --status PASS --retries 0 --duration 3m --model sonnet --tokens 12000
   $(basename "$0") . --task 2 --status FAIL --retries 2 --duration 8m --model sonnet --tokens 34000 --notes 'Type error in template'
+  $(basename "$0") . --phi 0.40 --phi-stage spec --phi-notes '4/10 cross-refs'
   $(basename "$0") . --summary
 EOF
 }
@@ -78,6 +88,9 @@ while [[ $# -gt 0 ]]; do
     --model)    MODEL="$2"; shift 2 ;;
     --tokens)   TOKENS="$2"; shift 2 ;;
     --notes)    NOTES="$2"; shift 2 ;;
+    --phi)      PHI_SCORE="$2"; shift 2 ;;
+    --phi-stage) PHI_STAGE="$2"; shift 2 ;;
+    --phi-notes) PHI_NOTES="$2"; shift 2 ;;
     --summary)  SHOW_SUMMARY=1; shift ;;
     *)
       echo -e "${RED}Error:${NC} Unknown option: $1" >&2
@@ -141,8 +154,172 @@ if [[ $SHOW_SUMMARY -eq 1 ]]; then
     echo -e "  ${BOLD}Total retries:${NC}     $total_retries"
   fi
 
+  # Φ Scores
+  if grep -qE '^\|[[:space:]]*(spec|plan|execute|review|verify)' "$TRACES_FILE"; then
+    echo ""
+    echo -e "${BOLD}${CYAN}Φ Integration Scores${NC}"
+    
+    # Parse phi table rows
+    declare -A phi_scores=()
+    declare -A phi_labels=()
+    while IFS='|' read -r _ stage score label _; do
+      stage=$(echo "$stage" | xargs)
+      score=$(echo "$score" | xargs)
+      label=$(echo "$label" | xargs)
+      if [[ -n "$stage" && -n "$score" ]]; then
+        phi_scores[$stage]="$score"
+        phi_labels[$stage]="$label"
+      fi
+    done < <(grep -E '^\|[[:space:]]*(spec|plan|execute|review|verify)' "$TRACES_FILE" || true)
+
+    for stage in spec plan execute review verify; do
+      if [[ -n "${phi_scores[$stage]:-}" ]]; then
+        score="${phi_scores[$stage]}"
+        label="${phi_labels[$stage]:-}"
+        # Color based on score
+        score_num=$(echo "$score" | awk -F. '{printf "%d", $1*100 + ($2+0)}')
+        if [[ $score_num -ge 60 ]]; then
+          color="$GREEN"
+        elif [[ $score_num -ge 30 ]]; then
+          color="$YELLOW"
+        else
+          color="$RED"
+        fi
+        printf "  %-8s ${color}%s${NC}  %s\n" "$stage" "$score" "$label"
+      fi
+    done
+
+    # Calculate project Φ (weighted average)
+    if [[ ${#phi_scores[@]} -gt 0 ]]; then
+      # Weights: spec=10, plan=15, execute=25, review=20, verify=30
+      declare -A weights=([spec]=10 [plan]=15 [execute]=25 [review]=20 [verify]=30)
+      weighted_sum=0
+      weight_total=0
+      for stage in "${!phi_scores[@]}"; do
+        w="${weights[$stage]:-0}"
+        s="${phi_scores[$stage]}"
+        # Multiply score * weight * 100 for integer math
+        ws=$(echo "$s $w" | awk '{printf "%d", $1 * $2 * 100}')
+        weighted_sum=$((weighted_sum + ws))
+        weight_total=$((weight_total + w))
+      done
+      if [[ $weight_total -gt 0 ]]; then
+        project_phi=$(echo "$weighted_sum $weight_total" | awk '{printf "%.2f", $1 / ($2 * 100)}')
+        # Label
+        phi_int=$(echo "$project_phi" | awk -F. '{printf "%d", $1*100 + ($2+0)}')
+        if [[ $phi_int -ge 70 ]]; then
+          plabel="Unified build"
+          pcolor="$GREEN"
+        elif [[ $phi_int -ge 50 ]]; then
+          plabel="Integrated build"
+          pcolor="$GREEN"
+        elif [[ $phi_int -ge 30 ]]; then
+          plabel="Functional build"
+          pcolor="$YELLOW"
+        else
+          plabel="Fragmented build"
+          pcolor="$RED"
+        fi
+        echo ""
+        echo -e "  ${BOLD}Project Φ: ${pcolor}${project_phi}${NC} — ${pcolor}${plabel}${NC}"
+      fi
+    fi
+  fi
+
   echo ""
   exit 0
+fi
+
+# --- Φ logging mode ---
+if [[ -n "$PHI_SCORE" ]]; then
+  if [[ -z "$PHI_STAGE" ]]; then
+    echo -e "${RED}Error:${NC} --phi-stage is required with --phi" >&2
+    exit 1
+  fi
+
+  # Validate stage
+  case "$PHI_STAGE" in
+    spec|plan|execute|review|verify) ;;
+    *)
+      echo -e "${RED}Error:${NC} Invalid phi stage '$PHI_STAGE' (expected: spec, plan, execute, review, verify)" >&2
+      exit 1
+      ;;
+  esac
+
+  # Generate label from score
+  score_int=$(echo "$PHI_SCORE" | tr -d '.')
+  if [[ ${#score_int} -eq 1 ]]; then score_int="${score_int}0"; fi
+  
+  case "$PHI_STAGE" in
+    spec)
+      if [[ $score_int -ge 60 ]]; then PHI_LABEL="Entangled"
+      elif [[ $score_int -ge 30 ]]; then PHI_LABEL="Well integrated"
+      elif [[ $score_int -ge 10 ]]; then PHI_LABEL="Loosely connected"
+      else PHI_LABEL="Fragmented"; fi
+      ;;
+    plan)
+      if [[ $score_int -ge 40 ]]; then PHI_LABEL="Over-coupled"
+      elif [[ $score_int -ge 20 ]]; then PHI_LABEL="Balanced"
+      elif [[ $score_int -ge 10 ]]; then PHI_LABEL="Loosely coupled"
+      else PHI_LABEL="Too decomposed"; fi
+      ;;
+    execute)
+      if [[ $score_int -ge 80 ]]; then PHI_LABEL="Tightly coupled"
+      elif [[ $score_int -ge 50 ]]; then PHI_LABEL="Well integrated"
+      elif [[ $score_int -ge 20 ]]; then PHI_LABEL="Partially integrated"
+      else PHI_LABEL="Isolated"; fi
+      ;;
+    review)
+      if [[ $score_int -ge 90 ]]; then PHI_LABEL="Pristine"
+      elif [[ $score_int -ge 70 ]]; then PHI_LABEL="Cohesive"
+      elif [[ $score_int -ge 40 ]]; then PHI_LABEL="Mostly coherent"
+      else PHI_LABEL="Incoherent"; fi
+      ;;
+    verify)
+      if [[ $score_int -ge 90 ]]; then PHI_LABEL="Fully realized"
+      elif [[ $score_int -ge 60 ]]; then PHI_LABEL="Emergent"
+      elif [[ $score_int -ge 30 ]]; then PHI_LABEL="Partial emergence"
+      else PHI_LABEL="Parts without whole"; fi
+      ;;
+  esac
+
+  # Check if Φ table exists in TRACES.md
+  PHI_ROW="| ${PHI_STAGE} | ${PHI_SCORE} | ${PHI_LABEL} | ${PHI_NOTES:-} |"
+
+  if grep -qE '^\|[[:space:]]*Stage[[:space:]]*\|[[:space:]]*Φ' "$TRACES_FILE"; then
+    # Φ table exists — check if stage already logged (update) or append
+    if grep -qE "^\|[[:space:]]*${PHI_STAGE}[[:space:]]*\|" "$TRACES_FILE"; then
+      # Update existing row
+      sed -i "s|^\|[[:space:]]*${PHI_STAGE}[[:space:]]*\|.*|${PHI_ROW}|" "$TRACES_FILE"
+      echo -e "${GREEN}Updated:${NC} Φ(${PHI_STAGE}) = ${GREEN}${PHI_SCORE}${NC} — ${PHI_LABEL}"
+    else
+      # Find last phi table row and append
+      last_phi_line=$(grep -nE '^\|[[:space:]]*(spec|plan|execute|review|verify|----)' "$TRACES_FILE" | tail -1 | cut -d: -f1)
+      if [[ -n "$last_phi_line" ]]; then
+        sed -i "${last_phi_line}a\\${PHI_ROW}" "$TRACES_FILE"
+      fi
+      echo -e "${GREEN}Logged:${NC} Φ(${PHI_STAGE}) = ${GREEN}${PHI_SCORE}${NC} — ${PHI_LABEL}"
+    fi
+  else
+    # Create Φ table
+    cat >> "$TRACES_FILE" <<EOF
+
+## Φ Integration Scores
+| Stage | Φ Score | Label | Notes |
+|-------|---------|-------|-------|
+${PHI_ROW}
+EOF
+    echo -e "${GREEN}Logged:${NC} Φ(${PHI_STAGE}) = ${GREEN}${PHI_SCORE}${NC} — ${PHI_LABEL}"
+  fi
+
+  if [[ -n "$PHI_NOTES" ]]; then
+    echo -e "  Notes: ${PHI_NOTES}"
+  fi
+
+  # If no task logging needed, exit
+  if [[ -z "$TASK_NUM" ]]; then
+    exit 0
+  fi
 fi
 
 # --- Log mode: validate required fields ---
