@@ -47,11 +47,11 @@
 ## Phase 4: Self-Improvement Loop
 **Goal:** Build the Phase 6 (Improve) machinery
 
-- [ ] Eval suite with 4-6 representative tasks
-- [ ] Trace analyzer script (clusters failure patterns)
-- [ ] Dual-stream evolution engine (tactical + strategic)
-- [ ] A/B testing harness for prompt variants
-- [ ] Metrics dashboard (pass rate, retries, tokens, time trends)
+- [x] Eval suite with 4 representative tasks (simple-module, bug-fix, refactor, new-feature)
+- [x] Trace analyzer script (clusters failure patterns, --json support)
+- [x] Dual-stream evolution engine (tactical + strategic, PROPOSED-CHANGES.md output)
+- [x] A/B testing harness for prompt variants (simulated runs, comparison table)
+- [x] Metrics dashboard (pass rate, retries, tokens, time trends, Φ bar charts)
 
 **Deliverable:** Self-improving methodology. Gets better with every project.
 **Gate:** Demonstrate measurable improvement on eval suite after one evolution cycle.
