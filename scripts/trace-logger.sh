@@ -247,8 +247,7 @@ if [[ -n "$PHI_SCORE" ]]; then
   esac
 
   # Generate label from score
-  score_int=$(echo "$PHI_SCORE" | tr -d '.')
-  if [[ ${#score_int} -eq 1 ]]; then score_int="${score_int}0"; fi
+  score_int=$(echo "$PHI_SCORE" | awk -F. '{printf "%d", $1*100 + ($2+0)}')
   
   case "$PHI_STAGE" in
     spec)
