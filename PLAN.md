@@ -7,9 +7,9 @@
 - [x] SKILL.md with workflow overview
 - [x] Reference docs for each phase (0-4, 6)
 - [x] GitHub repo initialized
-- [ ] `.planning/` template generator script
-- [ ] Context packet builder script
-- [ ] Sub-agent spawn template (OpenClaw-native)
+- [x] `.planning/` template generator script
+- [x] Context packet builder script
+- [x] Sub-agent spawn template (OpenClaw-native)
 
 **Deliverable:** Usable as a manual process guide. Agent reads SKILL.md, follows phases.
 **Gate:** Tripp reviews and approves structure.
@@ -19,11 +19,11 @@
 ## Phase 2: Automation Scripts
 **Goal:** Scripts that automate the mechanical parts
 
-- [ ] `scripts/init-project.sh` — Creates `.planning/` directory with template files (SPEC.md, PLAN.md, STATE.md)
-- [ ] `scripts/build-context.sh` — Assembles context packets for sub-agent spawning (extracts global + task context, enforces token budget)
-- [ ] `scripts/wave-executor.sh` — Orchestrates wave-parallel execution via `sessions_spawn` (spawn N agents, wait for completion, collect results)
-- [ ] `scripts/review-gate.sh` — Runs automated checks (tests pass, lint clean, type check) and reports gate status
-- [ ] `scripts/trace-logger.sh` — Captures execution traces (task, status, retries, tokens, time) to `.planning/TRACES.md`
+- [x] `scripts/init-project.sh` — Creates `.planning/` directory with template files (SPEC.md, PLAN.md, STATE.md, TRACES.md)
+- [x] `scripts/build-context.sh` — Assembles context packets for sub-agent spawning (extracts global + task context, enforces token budget)
+- [x] `scripts/wave-executor.sh` — Orchestrates wave-parallel execution via `sessions_spawn` (spawn N agents, wait for completion, collect results)
+- [x] `scripts/review-gate.sh` — Runs automated checks (tests pass, lint clean, type check) and reports gate status
+- [x] `scripts/trace-logger.sh` — Captures execution traces (task, status, retries, tokens, time) to `.planning/TRACES.md`
 
 **Deliverable:** Semi-automated workflow. Human triggers phases, scripts handle orchestration.
 **Gate:** Scripts tested on a real project (dogfood).
